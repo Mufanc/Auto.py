@@ -1,4 +1,4 @@
-package mfc.automator;
+package mfc.reflect;
 
 import java.lang.reflect.Proxy;
 

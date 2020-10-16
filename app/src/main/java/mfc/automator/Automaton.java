@@ -6,13 +6,17 @@ import android.os.HandlerThread;
 import android.os.Looper;
 import android.os.SystemClock;
 import android.view.accessibility.AccessibilityNodeInfo;
+
 import com.android.uiautomator.core.UiDevice;
 import com.android.uiautomator.core.UiSelector;
+
+import mfc.reflect.ReflectUtils;
 
 public class Automaton {
     public static Class<?> uiDeviceClass = UiDevice.class;
     public static Class<?> uiSelectorClass = UiSelector.class;
     public static Class<?> uiAutomationClass = UiAutomation.class;
+    public static Class<?> accessibilityNodeInfoClass = AccessibilityNodeInfo.class;
     public static Class<?> uiAutomatorBridgeClass;
     public static Class<?> shellUiAutomatorBridgeClass;
 
@@ -29,25 +33,24 @@ public class Automaton {
             Automaton.shellUiAutomatorBridgeClass = Class.forName("com.android.uiautomator.core.ShellUiAutomatorBridge");
 
             // 反射获取 UiAutomation
-            Object connection = ReflectTools.getInstance(
+            Object connection = ReflectUtils.getInstance(
                     Class.forName("android.app.UiAutomationConnection"),
                     new Class[] {}, new Object[] {}
             );
-            Automaton.uiAutomation = (UiAutomation) ReflectTools.getInstance(
+            Automaton.uiAutomation = (UiAutomation) ReflectUtils.getInstance(
                     Automaton.uiAutomationClass,
                     new Class<?>[] {Looper.class, Class.forName("android.app.IUiAutomationConnection")},
                     new Object[] {mHandlerThread.getLooper(), connection}
             );
 
             // 反射连接无障碍
-            ReflectTools.callMethod(
-                    Automaton.uiAutomationClass,
-                    "connect", Automaton.uiAutomation,
+            ReflectUtils.callMethod(
+                    Automaton.uiAutomation,"connect",
                     new Class<?>[] {}, new Object[] {}
             );
 
             // 反射获取 UiAutomatorBridge
-            Automaton.uiAutomatorBridge = ReflectTools.getInstance(
+            Automaton.uiAutomatorBridge = ReflectUtils.getInstance(
                     Automaton.shellUiAutomatorBridgeClass,
                     new Class<?>[] {Automaton.uiAutomationClass}, new Object[] {Automaton.uiAutomation}
             );
@@ -56,7 +59,7 @@ public class Automaton {
         }
     }
 
-    // Todo: 这家伙每次才找一个有点垃圾，考虑自己写一个搜索算法~233
+    // Todo: 这家伙每次才找一个有点垃圾，考虑自己写一个搜索算法 ~ 233
     public static AccessibilityNodeInfo findAccessibilityNodeInfo(long timeout, UiSelector mSelector) {
         try {
             AccessibilityNodeInfo node = null;
@@ -64,13 +67,13 @@ public class Automaton {
             long currentMills = 0;
             while (currentMills <= timeout || timeout == -2147483648) {
                 @SuppressLint("PrivateApi") Class<?> queryControllerClass = Class.forName("com.android.uiautomator.core.QueryController");
-                Object mController = ReflectTools.getInstance(
+                Object mController = ReflectUtils.getInstance(
                         queryControllerClass,
                         new Class<?>[] {Automaton.uiAutomatorBridgeClass},
                         new Object[] {Automaton.uiAutomatorBridge}
                 );
-                node = (AccessibilityNodeInfo) ReflectTools.callMethod(
-                        queryControllerClass, "findAccessibilityNodeInfo", mController,
+                node = (AccessibilityNodeInfo) ReflectUtils.callMethod(
+                        mController, "findAccessibilityNodeInfo",
                         new Class<?>[] {UiSelector.class}, new Object[] {mSelector}
                 );
 
@@ -95,14 +98,14 @@ public class Automaton {
     public void uiTest2() {
         try {
             System.out.println(" -- Start -- ");
-            new Device().setOrientationNatural();
-//            Selector mSelector = new Selector(new UiSelector().resourceId("com.tencent.mobileqq:id/input"));
-//            AccessibilityNode mNode = new AccessibilityNode(mSelector.findOne());
-//            mNode.setText("asdfklhgfjkghvifuhvf");
-//            mNode.setSelection(0, 5);
-//            mNode.cut();
-//            System.out.println(mNode.getText());
+            long start = SystemClock.uptimeMillis();
+            ////////////////
+            Selector mSelector = new Selector(new UiSelector().resourceId("com.tencent.mobileqq:id/input"));
+            mSelector.findOne().setText("啊这");
+            long end = SystemClock.uptimeMillis();
+            ////////////////
             System.out.println(" -- Finish -- ");
+            System.out.println("Process finished in " + (end-start) + "ms");
             Thread.sleep(1000);
         } catch(Exception err) {
             err.printStackTrace();

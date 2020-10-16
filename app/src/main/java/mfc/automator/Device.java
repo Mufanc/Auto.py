@@ -7,20 +7,22 @@ import com.android.uiautomator.core.UiDevice;
 
 import java.io.File;
 
-public class Device{
+import mfc.reflect.ReflectUtils;
+
+public class Device {
     public UiDevice mDevice;
 
     public Device() {
         try {
             // 获取 UiDevice 实例
-            Object mUiDevice = ReflectTools.getInstance(
+            Object mUiDevice = ReflectUtils.getInstance(
                     Automaton.uiDeviceClass,
                     new Class<?>[] {}, new Object[] {}
             );
 
             // 用 UiAutomatorBridge 初始化 UiDevice
-            ReflectTools.callMethod(
-                    Automaton.uiDeviceClass, "initialize", this,
+            ReflectUtils.callMethod(
+                    mDevice, "initialize",
                     new Class<?>[] {Automaton.uiAutomatorBridgeClass},
                     new Object[] {Automaton.uiAutomatorBridge}
             );

@@ -3,7 +3,6 @@ package mfc.automator;
 import android.os.Bundle;
 import android.view.accessibility.AccessibilityNodeInfo;
 
-import java.nio.DoubleBuffer;
 
 public class AccessibilityNode {
     private AccessibilityNodeInfo mNode;
@@ -80,4 +79,5 @@ public class AccessibilityNode {
 
     // Todo: 添加获取 Node 信息的方法，如 depth，index 等
     // Todo: 添加更多的操作方法，如 scrollTo
+    // Todo: 添加 getChild / children 等方法
 }
