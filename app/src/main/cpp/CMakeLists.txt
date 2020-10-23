@@ -42,3 +42,10 @@ target_link_libraries( # Specifies the target library.
                        # Links the target library to the log library
                        # included in the NDK.
                        ${log-lib} )
+
+#  -------------------------------------------------------------------------------------------------
+
+include_directories(
+        C:\\Users\\DELL\\AppData\\Local\\Programs\\Python\\Python38\\include
+        D:\\Users\\DELL\\AppData\\Local\\Android\\Sdk\\ndk\\21.3.6528147\\sources\\third_party\\shaderc\\libshaderc_util\\include\\libshaderc_util
+)

@@ -6,6 +6,8 @@ import android.view.accessibility.AccessibilityNodeInfo;
 
 import com.android.uiautomator.core.UiSelector;
 
+import java.util.LinkedList;
+import java.util.Queue;
 import java.util.regex.Pattern;
 
 import mfc.reflect.ReflectUtils;
@@ -45,7 +47,6 @@ public class Selector {
     static final int SELECTOR_RESOURCE_ID_REGEX = 31;
     
     public UiSelector mSelector;
-    public String algorithm = "dfs";
 
     private SparseArray<Object> mSelectorAttributes;
 
@@ -60,13 +61,6 @@ public class Selector {
     @SuppressWarnings("unchecked")
     public static <T> T cast(Object obj) {
         return (T) obj;
-    }
-
-    public void setAlgorithm(String algorithm) throws Exception {
-        if (!algorithm.equals("dfs") && !algorithm.equals("bfs")) {
-            throw new Exception("Invalid algorithm name: " + algorithm);
-        }
-        this.algorithm = algorithm;
     }
 
     String getString(int criterion) {
@@ -195,7 +189,8 @@ public class Selector {
                     }
                     break;
                 case Selector.SELECTOR_ID:
-                    break; //TODO: do we need this for AccessibilityNodeInfo.id?
+                    // Todo: do we need this for AccessibilityNodeInfo.id?
+                    break;
                 case Selector.SELECTOR_PACKAGE_NAME:
                     s = node.getPackageName();
                     if (s == null || !s.toString().contentEquals(getString(criterion))) {
@@ -261,7 +256,7 @@ public class Selector {
         return false;
     }
 
-    AccessibilityNode dfs(AccessibilityNodeInfo root, int index) {
+    AccessibilityNode dfsSingle(AccessibilityNodeInfo root, int index) {
         // 控件发生变化时的特判
         if (root == null) {
             return null;
@@ -272,7 +267,7 @@ public class Selector {
         }
         int length = root.getChildCount();
         for (int i = 0; i < length; i++) {
-            AccessibilityNode found = dfs(root.getChild(i), i);
+            AccessibilityNode found = dfsSingle(root.getChild(i), i);
             if (found != null) {
                 return found;
             }
@@ -280,30 +275,56 @@ public class Selector {
         return null;
     }
 
-    AccessibilityNode bfs(AccessibilityNodeInfo root) {
-        // Todo: 完善算法
+    private static class Pair {
+        public AccessibilityNodeInfo node;
+        public int index;
+
+        Pair (AccessibilityNodeInfo mNode, int mIndex) {
+            node = mNode;
+            index = mIndex;
+        }
+    }
+
+    AccessibilityNode bfsSingle(AccessibilityNodeInfo root) {
+        Queue<Pair> task = new LinkedList<>();
+        task.offer(new Pair(root, 0));
+        while (!task.isEmpty()) {
+            Pair top = task.poll();
+            assert top != null;
+            if (top.node == null) {
+                continue;
+            }
+            if (isMatchFor(top.node, top.index)) {
+                return new AccessibilityNode(top.node);
+            }
+            int length = top.node.getChildCount();
+            for (int i = 0; i < length; i++) {
+                task.offer(new Pair(top.node.getChild(i), i));
+            }
+        }
         return null;
     }
 
     public AccessibilityNode findOne(long timeout) throws InterruptedException {
         long start = SystemClock.uptimeMillis();
-        if (algorithm.equals("dfs")) {
+        if (Automaton.algorithm.equals("dfs")) {
             do {
-                AccessibilityNode found = dfs(Automaton.uiAutomation.getRootInActiveWindow(), 0);
+                AccessibilityNode found = dfsSingle(Automaton.uiAutomation.getRootInActiveWindow(), 0);
                 if (found != null) {
                     return found;
                 }
                 Thread.sleep(10);
             } while (SystemClock.uptimeMillis() - start < timeout || timeout == -1);
-        } else {
+        } else if (Automaton.algorithm.equals("bfs")) {
             do {
-                AccessibilityNode found = bfs(Automaton.uiAutomation.getRootInActiveWindow());
+                AccessibilityNode found = bfsSingle(Automaton.uiAutomation.getRootInActiveWindow());
                 if (found != null) {
                     return found;
                 }
                 Thread.sleep(10);
             } while (SystemClock.uptimeMillis() - start < timeout || timeout == -1);
         }
+        // Todo: 是否需要加入更高效智能的搜索算法？
         return null;
     }
 
@@ -313,5 +334,10 @@ public class Selector {
 
     public AccessibilityNode findOnce() throws InterruptedException {
         return findOne(0);
+    }
+
+    public AccessibilityNodeCollection find() {
+        // Todo: 加入 “控件集合” 的概念，一次返回多个控件
+        return null;
     }
 }

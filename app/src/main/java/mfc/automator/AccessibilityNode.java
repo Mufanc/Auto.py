@@ -67,6 +67,7 @@ public class AccessibilityNode {
     }
 
     public String getText() {
+        // Todo: 这玩意有时会返回 null，或许应替换为空字符串？
         return mNode.getText().toString();
     }
 
