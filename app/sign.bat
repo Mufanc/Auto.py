@@ -1,0 +1,1 @@
+javap -s build/intermediates/javac/debug/classes/%1

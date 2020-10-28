@@ -78,8 +78,8 @@ public class Automaton {
 //                @SuppressLint("PrivateApi") Class<?> queryControllerClass = Class.forName("com.android.uiautomator.core.QueryController");
 //                Object mController = ReflectUtils.getInstance(
 //                        queryControllerClass,
-//                        new Class<?>[] {Automaton.uiAutomatorBridgeClass},
-//                        new Object[] {Automaton.uiAutomatorBridge}
+//                        new Class<?>[] {automaton.uiAutomatorBridgeClass},
+//                        new Object[] {automaton.uiAutomatorBridge}
 //                );
 //                node = (AccessibilityNodeInfo) ReflectUtils.callMethod(
 //                        mController, "findAccessibilityNodeInfo",
@@ -124,5 +124,9 @@ public class Automaton {
         } catch(Exception err) {
             err.printStackTrace();
         }
+    }
+
+    public static int test() {
+        return 123;
     }
 }
