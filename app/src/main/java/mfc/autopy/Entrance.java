@@ -9,6 +9,7 @@ public class Entrance {
 
         try {
             new Automaton().runPython("main.py");
+            Thread.sleep(100);
         } catch (Exception err) {
             err.printStackTrace();
         }

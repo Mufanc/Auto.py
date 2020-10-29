@@ -103,7 +103,6 @@ public class Automaton {
 //        }
 //        return null;
 //    }
-
     public native void runPython(String filename);
 
     public void uiTest2() {
