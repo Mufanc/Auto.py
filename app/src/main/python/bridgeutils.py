@@ -5,5 +5,8 @@ class JavaObject:
     def call_object_method(self, *args):
         pass
 
+    def call_int_method(self, *args):
+        pass
+
     def call_boolean_method(self, *args):
         pass

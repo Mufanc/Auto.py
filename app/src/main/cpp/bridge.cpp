@@ -42,7 +42,7 @@ static PyMethodDef JavaObjectMethods[] = {
         {nullptr}
 };
 
-typedef struct { // Todo: 如果传递 int 类型参数出现问题，则需 重  构  代  码
+typedef struct {
     PyObject_HEAD
     jobject mObject;
 } PyJavaObject;
@@ -105,98 +105,84 @@ static struct PyModuleDef PyBridgeModule = {
  */
 class jniutils {
 public:
-    static jobject newInstance(const char *classname, const char *sign, const jvalue *args) {
+    static jobject newInstance(const char *classname, const char *sign, const jvalue *args=NULL) {
         jclass mClass = javaEnv -> FindClass(classname);
         jmethodID mID = javaEnv -> GetMethodID(mClass, "<init>", sign);
-        return javaEnv -> NewObjectA(mClass, mID, args);
+        if (args) {
+            return javaEnv -> NewObjectA(mClass, mID, args);
+        } else {
+            return javaEnv -> NewObject(mClass, mID);
+        }
     }
 
-    static jobject newInstance(jclass mClass, const char *sign, const jvalue *args) {
+    static jobject newInstance(jclass mClass, const char *sign, const jvalue *args=NULL) {
         jmethodID mID = javaEnv -> GetMethodID(mClass, "<init>", sign);
-        return javaEnv -> NewObjectA(mClass, mID, args);
+        if (args) {
+            return javaEnv -> NewObjectA(mClass, mID, args);
+        } else {
+            return javaEnv -> NewObject(mClass, mID);
+        }
+
     }
 
-    static jobject newInstance(const char *classname, const char *sign) {
-        jclass mClass = javaEnv -> FindClass(classname);
-        jmethodID mID = javaEnv -> GetMethodID(mClass, "<init>", sign);
-        return javaEnv -> NewObject(mClass, mID);
-    }
-
-    static jobject newInstance(jclass mClass, const char *sign) {
-        jmethodID mID = javaEnv -> GetMethodID(mClass, "<init>", sign);
-        return javaEnv -> NewObject(mClass, mID);
-    }
-
-    static jobject callObjectMethod(jobject obj, const char *name, const char *sign, jvalue *args) {
+    static jobject callObjectMethod(jobject obj, const char *name, const char *sign, jvalue *args=NULL) {
         jclass mClass = javaEnv -> GetObjectClass(obj);
         jmethodID mID = javaEnv -> GetMethodID(mClass, name, sign);
-        return javaEnv -> CallObjectMethodA(obj, mID, args);
+        if (args) {
+            return javaEnv -> CallObjectMethodA(obj, mID, args);
+        } else {
+            return javaEnv -> CallObjectMethod(obj, mID);
+        }
     }
 
-    static jobject callObjectMethod(jobject obj, const char *name, const char *sign) {
+    static jobject callStringMethod(jobject obj, const char *name, const char *sign, jvalue *args=NULL) {
         jclass mClass = javaEnv -> GetObjectClass(obj);
         jmethodID mID = javaEnv -> GetMethodID(mClass, name, sign);
-        return javaEnv -> CallObjectMethod(obj, mID);
+        if (args) {
+            return javaEnv -> CallObjectMethodA(obj, mID, args);
+        } else {
+            return javaEnv -> CallObjectMethod(obj, mID);
+        }
     }
 
-    static jobject callStringMethod(jobject obj, const char *name, const char *sign, jvalue *args) {
+    static jint callIntMethod(jobject obj, const char *name, const char *sign, jvalue *args=NULL) {
         jclass mClass = javaEnv -> GetObjectClass(obj);
         jmethodID mID = javaEnv -> GetMethodID(mClass, name, sign);
-        return javaEnv -> CallObjectMethodA(obj, mID, args);
+        if (args) {
+            return javaEnv -> CallIntMethodA(obj, mID, args);
+        } else {
+            return javaEnv -> CallIntMethod(obj, mID);
+        }
     }
 
-    static jobject callStringMethod(jobject obj, const char *name, const char *sign) {
+    static jlong callLongMethod(jobject obj, const char *name, const char *sign, jvalue *args=NULL) {
         jclass mClass = javaEnv -> GetObjectClass(obj);
         jmethodID mID = javaEnv -> GetMethodID(mClass, name, sign);
-        return javaEnv -> CallObjectMethod(obj, mID);
+        if (args) {
+            return javaEnv -> CallLongMethodA(obj, mID, args);
+        } else {
+            return javaEnv -> CallLongMethod(obj, mID);
+        }
     }
 
-    static jint callIntMethod(jobject obj, const char *name, const char *sign, jvalue *args) {
+    static jdouble callDoubleMethod(jobject obj, const char *name, const char *sign, jvalue *args=NULL) {
         jclass mClass = javaEnv -> GetObjectClass(obj);
         jmethodID mID = javaEnv -> GetMethodID(mClass, name, sign);
-        return javaEnv -> CallIntMethodA(obj, mID, args);
+        if (args) {
+            return javaEnv -> CallDoubleMethodA(obj, mID, args);
+        } else {
+            return javaEnv -> CallDoubleMethod(obj, mID);
+        }
     }
 
-    static jint callIntMethod(jobject obj, const char *name, const char *sign) {
+    static jboolean callBooleanMethod(jobject obj, const char *name, const char *sign, jvalue *args=NULL) {
         jclass mClass = javaEnv -> GetObjectClass(obj);
         jmethodID mID = javaEnv -> GetMethodID(mClass, name, sign);
-        return javaEnv -> CallIntMethod(obj, mID);
-    }
-
-    static jlong callLongMethod(jobject obj, const char *name, const char *sign, jvalue *args) {
-        jclass mClass = javaEnv -> GetObjectClass(obj);
-        jmethodID mID = javaEnv -> GetMethodID(mClass, name, sign);
-        return javaEnv -> CallLongMethodA(obj, mID, args);
-    }
-
-    static jlong callLongMethod(jobject obj, const char *name, const char *sign) {
-        jclass mClass = javaEnv -> GetObjectClass(obj);
-        jmethodID mID = javaEnv -> GetMethodID(mClass, name, sign);
-        return javaEnv -> CallLongMethod(obj, mID);
-    }
-
-    static jdouble callDoubleMethod(jobject obj, const char *name, const char *sign, jvalue *args) {
-        jclass mClass = javaEnv -> GetObjectClass(obj);
-        jmethodID mID = javaEnv -> GetMethodID(mClass, name, sign);
-        return javaEnv -> CallDoubleMethodA(obj, mID, args);
-    }
-
-    static jdouble callDoubleMethod(jobject obj, const char *name, const char *sign) {
-        jclass mClass = javaEnv -> GetObjectClass(obj);
-        jmethodID mID = javaEnv -> GetMethodID(mClass, name, sign);
-        return javaEnv -> CallDoubleMethod(obj, mID);
-    }
-
-    static jboolean callBooleanMethod(jobject obj, const char *name, const char *sign, jvalue *args) {
-        jclass mClass = javaEnv -> GetObjectClass(obj);
-        jmethodID mID = javaEnv -> GetMethodID(mClass, name, sign);
-        return javaEnv -> CallBooleanMethodA(obj, mID, args);
-    }
-
-    static jboolean callBooleanMethod(jobject obj, const char *name, const char *sign) {
-        jclass mClass = javaEnv -> GetObjectClass(obj);
-        jmethodID mID = javaEnv -> GetMethodID(mClass, name, sign);
-        return javaEnv -> CallBooleanMethod(obj, mID);
+        if (args) {
+            return javaEnv -> CallBooleanMethodA(obj, mID, args);
+        } else {
+            return javaEnv -> CallBooleanMethod(obj, mID);
+        }
     }
 };
 
@@ -219,13 +205,6 @@ public:
             cstr[length] = 0;
         }
         return cstr;
-    }
-
-    static PyObject *toPython(const jobject obj) {  // Todo: 好像没什么用
-        if (javaEnv -> IsInstanceOf(obj, StringClass)) {
-            return PyUnicode_FromString(jstring2charp((jstring) obj));
-        }
-        return NULL;
     }
 
     static jobject toJava(PyObject *obj) {
@@ -279,7 +258,26 @@ public:
         } else if (PyFloat_Check(obj)) {
             result.d = PyFloat_AsDouble(obj);
         } else if (obj -> ob_type == &JavaObjectType) {
-            result.l = ((PyJavaObject *) obj) -> mObject;
+            /**
+             * 为避免类型转换时出问题，这里做了类型分析
+             * 可能导致真正想使用 Integer/Boolean 等几个类的时候无法使用
+             */
+            jobject mObject = ((PyJavaObject *) obj) -> mObject;
+            if (javaEnv -> IsInstanceOf(mObject, IntegerClass)) {
+                jmethodID mID = javaEnv -> GetMethodID(IntegerClass, "intValue", "()I");
+                result.i = javaEnv -> CallIntMethod(mObject, mID);
+            } else if(javaEnv -> IsInstanceOf(mObject, LongClass)) {
+                jmethodID mID = javaEnv -> GetMethodID(LongClass, "longValue", "()J");
+                result.j = javaEnv -> CallLongMethod(mObject, mID);
+            } else if(javaEnv -> IsInstanceOf(mObject, DoubleClass)) {
+                jmethodID mID = javaEnv -> GetMethodID(DoubleClass, "doubleValue", "()D");
+                result.d = javaEnv -> CallDoubleMethod(mObject, mID);
+            } else if(javaEnv -> IsInstanceOf(mObject, BooleanClass)) {
+                jmethodID mID = javaEnv -> GetMethodID(BooleanClass, "booleanValue", "()Z");
+                result.z = javaEnv -> CallBooleanMethod(mObject, mID);
+            } else {
+                result.l = mObject;
+            }
         } else {
             PyObject *objType = PyObject_GetAttrString(obj, "__class__");
             PyObject *typeName = PyObject_GetAttrString(objType, "__name__");

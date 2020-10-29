@@ -1,20 +1,11 @@
 from bridgeutils import *
+from sys import stdout
 
-selector = JavaObject(('com/android/uiautomator/core/UiSelector', '()V'), reflect=True)
-selector = selector.call_object_method(
-    'resourceId',
-    '(Ljava/lang/String;)Lcom/android/uiautomator/core/UiSelector;',
-    ('com.tencent.mobileqq:id/fun_btn',)
-)
-selector = JavaObject(
-    ('mfc/automator/Selector', '(Lcom/android/uiautomator/core/UiSelector;)V', (selector,)),
-    reflect=True
-)
-obj = selector.call_object_method(
-    'findOne',
-    '()Lmfc/automator/AccessibilityNode;'
-)
-obj.call_boolean_method(
-    'click',
-    '()Z'
-)
+test = JavaObject(('java/lang/Integer', '(I)V', (123,)), reflect=True)
+print(test.call_int_method('intValue', '()I'))
+print('???', type(test))
+stdout.flush()
+test = JavaObject(('mfc/autopy/Test', '(I)V', (test,)), reflect=True)
+print(test)
+print('Finish')
+stdout.flush()
