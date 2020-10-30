@@ -45,13 +45,10 @@ public class Selector {
     static final int SELECTOR_RESOURCE_ID = 29;
     static final int SELECTOR_CHECKABLE = 30;
     static final int SELECTOR_RESOURCE_ID_REGEX = 31;
-    
-    public UiSelector mSelector;
 
-    private SparseArray<Object> mSelectorAttributes;
+    private final SparseArray<Object> mSelectorAttributes;  // Todo: final自己加的
 
     public Selector(UiSelector selector) {
-        mSelector = selector;
         mSelectorAttributes = cast(ReflectUtils.getMember(
                 selector,
                 "mSelectorAttributes"
@@ -313,7 +310,7 @@ public class Selector {
                 if (found != null) {
                     return found;
                 }
-                Thread.sleep(10);
+//                Thread.sleep(10);
             } while (SystemClock.uptimeMillis() - start < timeout || timeout == -1);
         } else if (Automaton.algorithm.equals("bfs")) {
             do {
@@ -321,7 +318,7 @@ public class Selector {
                 if (found != null) {
                     return found;
                 }
-                Thread.sleep(10);
+//                Thread.sleep(10);
             } while (SystemClock.uptimeMillis() - start < timeout || timeout == -1);
         }
         // Todo: 是否需要加入更高效智能的搜索算法？

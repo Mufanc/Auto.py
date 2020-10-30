@@ -25,13 +25,14 @@
 static jclass IntegerClass, BooleanClass, DoubleClass, LongClass, StringClass;
 static JNIEnv *javaEnv;
 
-// Python 自定义类型变量
+// Python 自定义类型变量: JavaObject
 static PyObject *PyJavaObject_CallObjectMethod(PyObject *self, PyObject *args);
 static PyObject *PyJavaObject_CallStringMethod(PyObject *self, PyObject *args);
 static PyObject *PyJavaObject_CallIntMethod(PyObject *self, PyObject *args);
 static PyObject *PyJavaObject_CallLongMethod(PyObject *self, PyObject *args);
 static PyObject *PyJavaObject_CallDoubleMethod(PyObject *self, PyObject *args);
 static PyObject *PyJavaObject_CallBooleanMethod(PyObject *self, PyObject *args);
+static PyObject *PyJavaObject_CallMethod(PyObject *self, PyObject *args);
 static PyMethodDef JavaObjectMethods[] = {
         {"call_object_method", (PyCFunction) PyJavaObject_CallObjectMethod, METH_VARARGS, "jniutils::CallObjectMethod"},
         {"call_string_method", (PyCFunction) PyJavaObject_CallStringMethod, METH_VARARGS, "jniutils::CallStringMethod"},
@@ -39,12 +40,14 @@ static PyMethodDef JavaObjectMethods[] = {
         {"call_long_method", (PyCFunction) PyJavaObject_CallLongMethod, METH_VARARGS, "jniutils::CallLongMethod"},
         {"call_double_method", (PyCFunction) PyJavaObject_CallDoubleMethod, METH_VARARGS, "jniutils::CallDoubleMethod"},
         {"call_boolean_method", (PyCFunction) PyJavaObject_CallBooleanMethod, METH_VARARGS, "jniutils::CallBooleanMethod"},
+        {"call_method", (PyCFunction) PyJavaObject_CallMethod, METH_VARARGS, "jniutils::CallMethod [Auto]"},
         {nullptr}
 };
 
-typedef struct {
+typedef struct { // Todo: 如果传递 int 类型参数出现问题，则需重构代码 (但现在看好像没问题)
     PyObject_HEAD
-    jobject mObject;
+    jvalue mValue;
+    char typeSign;
 } PyJavaObject;
 
 static PyObject *PyJavaObject_str(PyObject *obj);
@@ -90,7 +93,74 @@ static PyTypeObject JavaObjectType = {
         PyJavaObject_new                                   /* tp_new */
 };
 
-// Python 扩展模块变量
+// Python 自定义类型变量: JavaClass
+static PyObject *PyJavaClass_CallObjectMethod(PyObject *self, PyObject *args);
+static PyObject *PyJavaClass_CallStringMethod(PyObject *self, PyObject *args);
+static PyObject *PyJavaClass_CallIntMethod(PyObject *self, PyObject *args);
+static PyObject *PyJavaClass_CallLongMethod(PyObject *self, PyObject *args);
+static PyObject *PyJavaClass_CallDoubleMethod(PyObject *self, PyObject *args);
+static PyObject *PyJavaClass_CallBooleanMethod(PyObject *self, PyObject *args);
+static PyObject *PyJavaClass_CallMethod(PyObject *self, PyObject *args);
+static PyMethodDef JavaClassMethods[] = {
+        {"call_object_method", (PyCFunction) PyJavaClass_CallObjectMethod, METH_VARARGS, "jniutils::CallStaticObjectMethod"},
+        {"call_string_method", (PyCFunction) PyJavaClass_CallStringMethod, METH_VARARGS, "jniutils::CallStaticStringMethod"},
+        {"call_int_method", (PyCFunction) PyJavaClass_CallIntMethod, METH_VARARGS, "jniutils::CallStaticIntMethod"},
+        {"call_long_method", (PyCFunction) PyJavaClass_CallLongMethod, METH_VARARGS, "jniutils::CallStaticLongMethod"},
+        {"call_double_method", (PyCFunction) PyJavaClass_CallDoubleMethod, METH_VARARGS, "jniutils::CallStaticDoubleMethod"},
+        {"call_boolean_method", (PyCFunction) PyJavaClass_CallBooleanMethod, METH_VARARGS, "jniutils::CallStaticBooleanMethod"},
+        {"call_method", (PyCFunction) PyJavaClass_CallMethod, METH_VARARGS, "jniutils::CallStaticMethod [Auto]"},
+        {nullptr}
+};
+
+typedef struct {
+    PyObject_HEAD
+    jclass mClass;
+} PyJavaClass;
+
+static PyObject *PyJavaClass_str(PyObject *obj);
+static PyObject *PyJavaClass_new(PyTypeObject *type, PyObject *args, PyObject *kwargs);
+static PyTypeObject JavaClassType = {
+        PyVarObject_HEAD_INIT(nullptr, 0)
+        "bridgeutils.JavaClass",                          /* tp_name */
+        sizeof(PyJavaClass),                              /* tp_basicsize */
+        0,                                                 /* tp_itemsize */
+        (destructor) nullptr,                              /* tp_dealloc */
+        0,                                                 /* tp_print */
+        nullptr,                                           /* tp_getattr */
+        nullptr,                                           /* tp_setattr */
+        nullptr,                                           /* tp_reserved */
+        nullptr,                                           /* tp_repr */
+        nullptr,                                           /* tp_as_number */
+        nullptr,                                           /* tp_as_sequence */
+        nullptr,                                           /* tp_as_mapping */
+        nullptr,                                           /* tp_hash  */
+        nullptr,                                           /* tp_call */
+        PyJavaClass_str,                                  /* tp_str */
+        nullptr,                                           /* tp_getattro */
+        nullptr,                                           /* tp_setattro */
+        nullptr,                                           /* tp_as_buffer */
+        Py_TPFLAGS_DEFAULT,                                /* tp_flags */
+        "Adapt a java class in Python.",                  /* tp_doc */
+        nullptr,                                           /* tp_traverse */
+        nullptr,                                           /* tp_clear */
+        nullptr,                                           /* tp_richcompare */
+        0,                                                 /* tp_weaklistoffset */
+        nullptr,                                           /* tp_iter */
+        nullptr,                                           /* tp_iternext */
+        JavaClassMethods,                                 /* tp_methods */
+        nullptr,                                           /* tp_members */
+        nullptr,                                           /* tp_getset */
+        nullptr,                                           /* tp_base */
+        nullptr,                                           /* tp_dict */
+        nullptr,                                           /* tp_descr_get */
+        nullptr,                                           /* tp_descr_set */
+        0,                                                 /* tp_dictoffset */
+        nullptr,                                           /* tp_init */
+        nullptr,                                           /* tp_alloc */
+        PyJavaClass_new                                   /* tp_new */
+};
+
+// Python 扩展模块: bridgeutils
 static struct PyModuleDef PyBridgeModule = {
         PyModuleDef_HEAD_INIT,
         "bridgeutils",
@@ -184,6 +254,55 @@ public:
             return javaEnv -> CallBooleanMethod(obj, mID);
         }
     }
+
+    static jobject callStaticObjectMethod(jclass clazz, const char *name, const char *sign, jvalue *args=NULL) {
+        jmethodID mID = javaEnv -> GetStaticMethodID(clazz, name, sign);
+        if (args) {
+            return javaEnv -> CallStaticObjectMethodA(clazz, mID, args);
+        } else {
+            return javaEnv -> CallStaticObjectMethod(clazz, mID);
+        }
+    }
+
+    static jobject callStaticStringMethod(jclass clazz, const char *name, const char *sign, jvalue *args=NULL) {
+        return callStaticObjectMethod(clazz, name, sign, args);
+    }
+
+    static jint callStaticIntMethod(jclass clazz, const char *name, const char *sign, jvalue *args=NULL) {
+        jmethodID mID = javaEnv -> GetStaticMethodID(clazz, name, sign);
+        if (args) {
+            return javaEnv -> CallStaticIntMethodA(clazz, mID, args);
+        } else {
+            return javaEnv -> CallStaticIntMethod(clazz, mID);
+        }
+    }
+
+    static jlong callStaticLongMethod(jclass clazz, const char *name, const char *sign, jvalue *args=NULL) {
+        jmethodID mID = javaEnv -> GetStaticMethodID(clazz, name, sign);
+        if (args) {
+            return javaEnv -> CallStaticLongMethodA(clazz, mID, args);
+        } else {
+            return javaEnv -> CallStaticLongMethod(clazz, mID);
+        }
+    }
+
+    static jdouble callStaticDoubleMethod(jclass clazz, const char *name, const char *sign, jvalue *args=NULL) {
+        jmethodID mID = javaEnv -> GetStaticMethodID(clazz, name, sign);
+        if (args) {
+            return javaEnv -> CallStaticDoubleMethodA(clazz, mID, args);
+        } else {
+            return javaEnv -> CallStaticDoubleMethod(clazz, mID);
+        }
+    }
+
+    static jboolean callStaticBooleanMethod(jclass clazz, const char *name, const char *sign, jvalue *args=NULL) {
+        jmethodID mID = javaEnv -> GetStaticMethodID(clazz, name, sign);
+        if (args) {
+            return javaEnv -> CallStaticBooleanMethodA(clazz, mID, args);
+        } else {
+            return javaEnv -> CallStaticBooleanMethod(clazz, mID);
+        }
+    }
 };
 
 
@@ -207,7 +326,19 @@ public:
         return cstr;
     }
 
+    static PyObject *toPython(const jobject obj) {  // Todo: 好像没什么用
+        if (javaEnv -> IsInstanceOf(obj, StringClass)) {
+            return PyUnicode_FromString(jstring2charp((jstring) obj));
+        }
+        return NULL;
+    }
+
     static jobject toJava(PyObject *obj) {
+        /**
+         * 这函数返回的一定是 jobject 类型变量
+         * 比如它会把 PyLong 转换为 java.lang.Integer
+         * 这样在调用方法传参的时候就很可能出问题，需要谨慎使用
+         */
         jvalue *args = new jvalue[1];
         jobject result;
         if (PyBool_Check(obj)) {
@@ -228,8 +359,7 @@ public:
             args -> d = PyFloat_AsDouble(obj);
             result = jniutils::newInstance(DoubleClass, "(D)V", args);
         } else if (obj -> ob_type == &JavaObjectType) {
-            // Todo: 这个类型判断不懂对不对，翻了 Python 源码好像也是这样写的
-            result = ((PyJavaObject *) obj) -> mObject;
+            result = ((PyJavaObject *) obj) -> mValue.l;
         } else {
             delete[] args;
             PyObject *objType = PyObject_GetAttrString(obj, "__class__");
@@ -243,46 +373,34 @@ public:
         return result;
     }
 
-    static jvalue toJvalue(PyObject *obj) {
+    static jvalue toJvalue(PyObject *obj, char *typeSign=NULL) {
         jvalue result; result.l = NULL;
         if (PyBool_Check(obj)) {
+            typeSign && (*typeSign = 'z');
             result.z = (obj == Py_True);
         } else if (PyLong_Check(obj)) {
             if (PyLong_AsLongLong(obj) > INT_MAX) {
+                typeSign && (*typeSign = 'j');
                 result.j = PyLong_AsLongLong(obj);
             } else {
+                typeSign && (*typeSign = 'i');
                 result.i = PyLong_AsLong(obj);
             }
         } else if (PyUnicode_Check(obj)) {
+            typeSign && (*typeSign = 's');
             result.l = javaEnv -> NewStringUTF(PyUnicode_AsUTF8(obj));
         } else if (PyFloat_Check(obj)) {
+            typeSign && (*typeSign = 'd');
             result.d = PyFloat_AsDouble(obj);
         } else if (obj -> ob_type == &JavaObjectType) {
-            /**
-             * 为避免类型转换时出问题，这里做了类型分析
-             * 可能导致真正想使用 Integer/Boolean 等几个类的时候无法使用
-             */
-            jobject mObject = ((PyJavaObject *) obj) -> mObject;
-            if (javaEnv -> IsInstanceOf(mObject, IntegerClass)) {
-                jmethodID mID = javaEnv -> GetMethodID(IntegerClass, "intValue", "()I");
-                result.i = javaEnv -> CallIntMethod(mObject, mID);
-            } else if(javaEnv -> IsInstanceOf(mObject, LongClass)) {
-                jmethodID mID = javaEnv -> GetMethodID(LongClass, "longValue", "()J");
-                result.j = javaEnv -> CallLongMethod(mObject, mID);
-            } else if(javaEnv -> IsInstanceOf(mObject, DoubleClass)) {
-                jmethodID mID = javaEnv -> GetMethodID(DoubleClass, "doubleValue", "()D");
-                result.d = javaEnv -> CallDoubleMethod(mObject, mID);
-            } else if(javaEnv -> IsInstanceOf(mObject, BooleanClass)) {
-                jmethodID mID = javaEnv -> GetMethodID(BooleanClass, "booleanValue", "()Z");
-                result.z = javaEnv -> CallBooleanMethod(mObject, mID);
-            } else {
-                result.l = mObject;
-            }
+            PyJavaObject *mObject = (PyJavaObject *) obj;
+            typeSign && (*typeSign = mObject -> typeSign);
+            result = mObject -> mValue;
         } else {
             PyObject *objType = PyObject_GetAttrString(obj, "__class__");
-            PyObject *typeName = PyObject_GetAttrString(objType, "__name__");
+            PyObject *type = PyObject_GetAttrString(objType, "__name__");
             std::stringstream sstream;
-            sstream << "convert::toJvalue: type " << PyUnicode_AsUTF8(typeName) << " is not supported.";
+            sstream << "convert::toJvalue: type " << PyUnicode_AsUTF8(type) << " is not supported.";
             PyErr_SetString(PyExc_ValueError, sstream.str().c_str());
         }
         return result;
@@ -293,13 +411,37 @@ public:
 /**
  * Python 函数定义
  */
+// JavaObject 相关函数
 static PyObject *PyJavaObject_str(PyObject *obj) {
-    jobject jobj = ((PyJavaObject *) obj) -> mObject;
-    jmethodID mID = javaEnv -> GetMethodID(javaEnv -> GetObjectClass(jobj), "toString", "()Ljava/lang/String;");
-    jobject jstr = javaEnv -> CallObjectMethod(jobj, mID);
+    // Todo: 类型判断
+    char typeSign = ((PyJavaObject *) obj) -> typeSign;
+    jvalue value = ((PyJavaObject *) obj) -> mValue;
     std::stringstream sstream;
-    sstream << convert::jstring2charp((jstring) jstr);
-    return Py_BuildValue("s", sstream.str().c_str());
+    switch (typeSign) {
+        case 'i':
+            sstream << "jint: " << value.i;
+            break;
+        case 'j':
+            sstream << "jlong: " << value.j;
+            break;
+        case 'd':
+            sstream << "jdouble: " << value.d;
+            break;
+        case 'z':
+            sstream << "jboolean: " << value.z;
+            break;
+        case 's':
+            sstream << convert::jstring2charp((jstring) value.l);
+            break;
+        default: {
+            jobject jobj = value.l;
+            jmethodID mID = javaEnv -> GetMethodID(javaEnv -> GetObjectClass(jobj), "toString", "()Ljava/lang/String;");
+            jobject jstr = javaEnv -> CallObjectMethod(jobj, mID);
+            sstream << convert::jstring2charp((jstring) jstr);
+            return PyUnicode_FromString(sstream.str().c_str());
+        }
+    }
+    return PyUnicode_FromString(sstream.str().c_str());
 }
 
 /**
@@ -326,7 +468,7 @@ static PyObject *PyJavaObject_new(PyTypeObject *type, PyObject *args, PyObject *
     }
 
     if (reflect == Py_False) {  // 将 Python 基本类型直接转换成 Java 对象
-        self -> mObject = convert::toJava(PyTuple_GetItem(args, 0));
+        self -> mValue = convert::toJvalue(PyTuple_GetItem(args, 0), &(self -> typeSign));
     } else {  // 通过反射创建对象
         PyTupleObject *tuple = (PyTupleObject *) arg0;
         if (PyTuple_Size(arg0) > 2) {
@@ -335,17 +477,18 @@ static PyObject *PyJavaObject_new(PyTypeObject *type, PyObject *args, PyObject *
             for (Py_ssize_t i = 0; i < length; i++) {
                 jargs.push_back(convert::toJvalue(PyTuple_GetItem(tuple -> ob_item[2], i)));
             }
-            self -> mObject = jniutils::newInstance(
+            self -> mValue.l = jniutils::newInstance(
                     PyUnicode_AsUTF8(tuple -> ob_item[0]),
                     PyUnicode_AsUTF8(tuple -> ob_item[1]),
                     &jargs[0]
-                    );
+            );
         } else {
-            self -> mObject = jniutils::newInstance(
+            self -> mValue.l = jniutils::newInstance(
                     PyUnicode_AsUTF8(tuple -> ob_item[0]),
                     PyUnicode_AsUTF8(tuple -> ob_item[1])
             );
         }
+        self -> typeSign = 'o';
     }
     return (PyObject *) self;
 }
@@ -361,11 +504,12 @@ static PyObject *PyJavaObject_CallObjectMethod(PyObject *self, PyObject *args) {
         for (Py_ssize_t i = 0; i < length; i++) {
             jargs.push_back(convert::toJvalue(PyTuple_GetItem(pyargs, i)));
         }
-        obj -> mObject = jniutils::callObjectMethod(((PyJavaObject *) self) -> mObject, name, sign, &jargs[0]);
+        obj -> mValue.l = jniutils::callObjectMethod(((PyJavaObject *) self) -> mValue.l, name, sign, &jargs[0]);
     } else {
         PyArg_ParseTuple(args, "ss", &name, &sign);
-        obj -> mObject = jniutils::callObjectMethod(((PyJavaObject *) self) -> mObject, name, sign);
+        obj -> mValue.l = jniutils::callObjectMethod(((PyJavaObject *) self) -> mValue.l, name, sign);
     }
+    obj -> typeSign = 'o';
     return (PyObject *) obj;
 }
 
@@ -380,10 +524,10 @@ static PyObject *PyJavaObject_CallStringMethod(PyObject *self, PyObject *args) {
         for (Py_ssize_t i = 0; i < length; i++) {
             jargs.push_back(convert::toJvalue(PyTuple_GetItem(pyargs, i)));
         }
-        result = (jstring) jniutils::callStringMethod(((PyJavaObject *) self) -> mObject, name, sign, &jargs[0]);
+        result = (jstring) jniutils::callStringMethod(((PyJavaObject *) self) -> mValue.l, name, sign, &jargs[0]);
     } else {
         PyArg_ParseTuple(args, "ss", &name, &sign);
-        result = (jstring) jniutils::callStringMethod(((PyJavaObject *) self) -> mObject, name, sign);
+        result = (jstring) jniutils::callStringMethod(((PyJavaObject *) self) -> mValue.l, name, sign);
     }
     return PyUnicode_FromString(convert::jstring2charp(result));
 }
@@ -399,10 +543,10 @@ static PyObject *PyJavaObject_CallIntMethod(PyObject *self, PyObject *args) {
         for (Py_ssize_t i = 0; i < length; i++) {
             jargs.push_back(convert::toJvalue(PyTuple_GetItem(pyargs, i)));
         }
-        result = jniutils::callIntMethod(((PyJavaObject *) self) -> mObject, name, sign, &jargs[0]);
+        result = jniutils::callIntMethod(((PyJavaObject *) self) -> mValue.l, name, sign, &jargs[0]);
     } else {
         PyArg_ParseTuple(args, "ss", &name, &sign);
-        result = jniutils::callIntMethod(((PyJavaObject *) self) -> mObject, name, sign);
+        result = jniutils::callIntMethod(((PyJavaObject *) self) -> mValue.l, name, sign);
     }
     return PyLong_FromLong(result);
 }
@@ -418,10 +562,10 @@ static PyObject *PyJavaObject_CallLongMethod(PyObject *self, PyObject *args) {
         for (Py_ssize_t i = 0; i < length; i++) {
             jargs.push_back(convert::toJvalue(PyTuple_GetItem(pyargs, i)));
         }
-        result = jniutils::callLongMethod(((PyJavaObject *) self) -> mObject, name, sign, &jargs[0]);
+        result = jniutils::callLongMethod(((PyJavaObject *) self) -> mValue.l, name, sign, &jargs[0]);
     } else {
         PyArg_ParseTuple(args, "ss", &name, &sign);
-        result = jniutils::callLongMethod(((PyJavaObject *) self) -> mObject, name, sign);
+        result = jniutils::callLongMethod(((PyJavaObject *) self) -> mValue.l, name, sign);
     }
     return PyLong_FromLongLong(result);
 }
@@ -437,10 +581,10 @@ static PyObject *PyJavaObject_CallDoubleMethod(PyObject *self, PyObject *args) {
         for (Py_ssize_t i = 0; i < length; i++) {
             jargs.push_back(convert::toJvalue(PyTuple_GetItem(pyargs, i)));
         }
-        result = jniutils::callDoubleMethod(((PyJavaObject *) self) -> mObject, name, sign, &jargs[0]);
+        result = jniutils::callDoubleMethod(((PyJavaObject *) self) -> mValue.l, name, sign, &jargs[0]);
     } else {
         PyArg_ParseTuple(args, "ss", &name, &sign);
-        result = jniutils::callDoubleMethod(((PyJavaObject *) self) -> mObject, name, sign);
+        result = jniutils::callDoubleMethod(((PyJavaObject *) self) -> mValue.l, name, sign);
     }
     return PyFloat_FromDouble(result);
 }
@@ -456,12 +600,206 @@ static PyObject *PyJavaObject_CallBooleanMethod(PyObject *self, PyObject *args) 
         for (Py_ssize_t i = 0; i < length; i++) {
             jargs.push_back(convert::toJvalue(PyTuple_GetItem(pyargs, i)));
         }
-        result = jniutils::callBooleanMethod(((PyJavaObject *) self) -> mObject, name, sign, &jargs[0]);
+        result = jniutils::callBooleanMethod(((PyJavaObject *) self) -> mValue.l, name, sign, &jargs[0]);
     } else {
         PyArg_ParseTuple(args, "ss", &name, &sign);
-        result = jniutils::callBooleanMethod(((PyJavaObject *) self) -> mObject, name, sign);
+        result = jniutils::callBooleanMethod(((PyJavaObject *) self) -> mValue.l, name, sign);
     }
     return result ? Py_True : Py_False;
+}
+
+static PyObject *PyJavaObject_CallMethod(PyObject *self, PyObject *args) {
+    const char *sign = PyUnicode_AsUTF8(PyTuple_GetItem(args, 2));
+    int length = strlen(sign);
+    switch (sign[length-1]) {
+        case 'I':
+            return PyJavaObject_CallIntMethod(self, args);
+        case 'J':
+            return PyJavaObject_CallLongMethod(self, args);
+        case 'D':
+            return PyJavaObject_CallDoubleMethod(self, args);
+        case 'Z':
+            return PyJavaObject_CallBooleanMethod(self, args);
+        case ';': {
+            const char *cmp = ";gnirtS/gnal/avajL";
+            for (int i = 0; i < 18; i++) {
+                if (sign[length - i - i] != cmp[i]) {
+                    return PyJavaObject_CallObjectMethod(self, args);
+                }
+            }
+            return PyJavaObject_CallStringMethod(self, args);
+        }
+        default:
+            PyErr_SetString(PyExc_ValueError, "The type of returned value is not supported by JavaObject::CallMethod yet.");
+            return NULL;
+    }
+}
+
+
+// JavaClass 相关函数
+static PyObject *PyJavaClass_str(PyObject *obj) {
+    jclass clazz = ((PyJavaClass *) obj) -> mClass;
+    jmethodID mID = javaEnv -> GetMethodID(clazz, "getName", "()Ljava/lang/String;");
+    std::cout << "I'm fine: " << mID << std::endl;
+    jobject jstr = javaEnv -> CallObjectMethod(clazz, mID);
+    std::stringstream sstream;
+    sstream << convert::jstring2charp((jstring) jstr);
+    return PyUnicode_FromString(sstream.str().c_str());
+}
+
+static PyObject *PyJavaClass_new(PyTypeObject *type, PyObject *args, PyObject *kwargs) {
+    PyJavaClass *self;
+    self = (PyJavaClass *) type -> tp_alloc(type, 0);
+
+    if (PyTuple_Size(args) != 1) {
+        PyErr_SetString(PyExc_ValueError, "The constructor of JavaClass accepts only one argument");
+        return NULL;
+    }
+
+    self -> mClass = javaEnv -> FindClass(PyUnicode_AsUTF8(PyTuple_GetItem(args, 0)));
+    return (PyObject *) self;
+}
+
+static PyObject *PyJavaClass_CallObjectMethod(PyObject *self, PyObject *args) {
+    PyJavaObject *obj = PyObject_NEW(PyJavaObject, &JavaObjectType);
+    char *name, *sign;
+    if (PyTuple_Size(args) > 2) {
+        PyObject *pyargs;
+        PyArg_ParseTuple(args, "ssO", &name, &sign, &pyargs);
+        Py_ssize_t length = PyTuple_Size(pyargs);
+        std::vector<jvalue> jargs;
+        for (Py_ssize_t i = 0; i < length; i++) {
+            jargs.push_back(convert::toJvalue(PyTuple_GetItem(pyargs, i)));
+        }
+        obj -> mValue.l = jniutils::callStaticObjectMethod(((PyJavaClass *) self) -> mClass, name, sign, &jargs[0]);
+    } else {
+        PyArg_ParseTuple(args, "ss", &name, &sign);
+        obj -> mValue.l = jniutils::callStaticObjectMethod(((PyJavaClass *) self) -> mClass, name, sign);
+    }
+    obj -> typeSign = 'o';
+    return (PyObject *) obj;
+}
+
+static PyObject *PyJavaClass_CallStringMethod(PyObject *self, PyObject *args) {
+    jstring result;
+    char *name, *sign;
+    if (PyTuple_Size(args) > 2) {
+        PyObject *pyargs;
+        PyArg_ParseTuple(args, "ssO", &name, &sign, &pyargs);
+        Py_ssize_t length = PyTuple_Size(pyargs);
+        std::vector<jvalue> jargs;
+        for (Py_ssize_t i = 0; i < length; i++) {
+            jargs.push_back(convert::toJvalue(PyTuple_GetItem(pyargs, i)));
+        }
+        result = (jstring) jniutils::callStaticStringMethod(((PyJavaClass *) self) -> mClass, name, sign, &jargs[0]);
+    } else {
+        PyArg_ParseTuple(args, "ss", &name, &sign);
+        result = (jstring) jniutils::callStaticStringMethod(((PyJavaClass *) self) -> mClass, name, sign);
+    }
+    return PyUnicode_FromString(convert::jstring2charp(result));
+}
+
+static PyObject *PyJavaClass_CallIntMethod(PyObject *self, PyObject *args) {
+    jint result;
+    char *name, *sign;
+    if (PyTuple_Size(args) > 2) {
+        PyObject *pyargs;
+        PyArg_ParseTuple(args, "ssO", &name, &sign, &pyargs);
+        Py_ssize_t length = PyTuple_Size(pyargs);
+        std::vector<jvalue> jargs;
+        for (Py_ssize_t i = 0; i < length; i++) {
+            jargs.push_back(convert::toJvalue(PyTuple_GetItem(pyargs, i)));
+        }
+        result = jniutils::callStaticIntMethod(((PyJavaClass *) self) -> mClass, name, sign, &jargs[0]);
+    } else {
+        PyArg_ParseTuple(args, "ss", &name, &sign);
+        result = jniutils::callStaticIntMethod(((PyJavaClass *) self) -> mClass, name, sign);
+    }
+    return PyLong_FromLong(result);
+}
+
+static PyObject *PyJavaClass_CallLongMethod(PyObject *self, PyObject *args) {
+    jlong result;
+    char *name, *sign;
+    if (PyTuple_Size(args) > 2) {
+        PyObject *pyargs;
+        PyArg_ParseTuple(args, "ssO", &name, &sign, &pyargs);
+        Py_ssize_t length = PyTuple_Size(pyargs);
+        std::vector<jvalue> jargs;
+        for (Py_ssize_t i = 0; i < length; i++) {
+            jargs.push_back(convert::toJvalue(PyTuple_GetItem(pyargs, i)));
+        }
+        result = jniutils::callStaticLongMethod(((PyJavaClass *) self) -> mClass, name, sign, &jargs[0]);
+    } else {
+        PyArg_ParseTuple(args, "ss", &name, &sign);
+        result = jniutils::callStaticLongMethod(((PyJavaClass *) self) -> mClass, name, sign);
+    }
+    return PyLong_FromLongLong(result);
+}
+
+static PyObject *PyJavaClass_CallDoubleMethod(PyObject *self, PyObject *args) {
+    jdouble result;
+    char *name, *sign;
+    if (PyTuple_Size(args) > 2) {
+        PyObject *pyargs;
+        PyArg_ParseTuple(args, "ssO", &name, &sign, &pyargs);
+        Py_ssize_t length = PyTuple_Size(pyargs);
+        std::vector<jvalue> jargs;
+        for (Py_ssize_t i = 0; i < length; i++) {
+            jargs.push_back(convert::toJvalue(PyTuple_GetItem(pyargs, i)));
+        }
+        result = jniutils::callStaticDoubleMethod(((PyJavaClass *) self) -> mClass, name, sign, &jargs[0]);
+    } else {
+        PyArg_ParseTuple(args, "ss", &name, &sign);
+        result = jniutils::callStaticDoubleMethod(((PyJavaClass *) self) -> mClass, name, sign);
+    }
+    return PyFloat_FromDouble(result);
+}
+
+static PyObject *PyJavaClass_CallBooleanMethod(PyObject *self, PyObject *args) {
+    jboolean result;
+    char *name, *sign;
+    if (PyTuple_Size(args) > 2) {
+        PyObject *pyargs;
+        PyArg_ParseTuple(args, "ssO", &name, &sign, &pyargs);
+        Py_ssize_t length = PyTuple_Size(pyargs);
+        std::vector<jvalue> jargs;
+        for (Py_ssize_t i = 0; i < length; i++) {
+            jargs.push_back(convert::toJvalue(PyTuple_GetItem(pyargs, i)));
+        }
+        result = jniutils::callStaticBooleanMethod(((PyJavaClass *) self) -> mClass, name, sign, &jargs[0]);
+    } else {
+        PyArg_ParseTuple(args, "ss", &name, &sign);
+        result = jniutils::callStaticBooleanMethod(((PyJavaClass *) self) -> mClass, name, sign);
+    }
+    return result ? Py_True : Py_False;
+}
+
+static PyObject *PyJavaClass_CallMethod(PyObject *self, PyObject *args) {
+    const char *sign = PyUnicode_AsUTF8(PyTuple_GetItem(args, 2));
+    int length = strlen(sign);
+    switch (sign[length-1]) {
+        case 'I':
+            return PyJavaClass_CallIntMethod(self, args);
+        case 'J':
+            return PyJavaClass_CallLongMethod(self, args);
+        case 'D':
+            return PyJavaClass_CallDoubleMethod(self, args);
+        case 'Z':
+            return PyJavaClass_CallBooleanMethod(self, args);
+        case ';': {
+            const char *cmp = ";gnirtS/gnal/avajL";
+            for (int i = 0; i < 18; i++) {
+                if (sign[length - i - i] != cmp[i]) {
+                    return PyJavaClass_CallObjectMethod(self, args);
+                }
+            }
+            return PyJavaClass_CallStringMethod(self, args);
+        }
+        default:
+            PyErr_SetString(PyExc_ValueError, "The type of returned value is not supported by JavaClass::CallMethod yet.");
+            return NULL;
+    }
 }
 
 
@@ -479,9 +817,12 @@ static void init(JNIEnv *env) {
 
 PyMODINIT_FUNC PyInit_bridgeutils(void) {
     PyType_Ready(&JavaObjectType);
+    PyType_Ready(&JavaClassType);
     PyObject *module = PyModule_Create(&PyBridgeModule);
     Py_INCREF((PyObject *) &JavaObjectType);
     PyModule_AddObject(module, "JavaObject", (PyObject *) &JavaObjectType);
+    Py_INCREF((PyObject *) &JavaClassType);
+    PyModule_AddObject(module, "JavaClass", (PyObject *) &JavaClassType);
     return module;
 }
 
